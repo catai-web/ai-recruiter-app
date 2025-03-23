@@ -12,7 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # -----------------------------
 # Dropbox Setup
 # -----------------------------
-DROPBOX_TOKEN = os.getenv("DROPBOX_TOKEN")
+DROPBOX_TOKEN = st.secrets("DROPBOX_TOKEN")
 dbx = dropbox.Dropbox(DROPBOX_TOKEN) if DROPBOX_TOKEN else None
 
 def list_dropbox_folders(path=""):
