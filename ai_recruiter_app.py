@@ -12,7 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # -----------------------------
 # Dropbox Setup
 # -----------------------------
-DROPBOX_TOKEN = st.secrets("DROPBOX_TOKEN")
+DROPBOX_TOKEN = st.secrets.get("DROPBOX_TOKEN")
 dbx = dropbox.Dropbox(DROPBOX_TOKEN) if DROPBOX_TOKEN else None
 
 def list_dropbox_folders(path=""):
@@ -110,16 +110,17 @@ with st.sidebar:
     job_file = st.file_uploader("Upload Job Description", type=["txt", "pdf", "docx"])
 
     st.header("Resume Source")
-    source = st.radio("Choose resume source:", ["Local Upload", "Dropbox"], horizontal=True)
+    use_local = st.checkbox("Use Local Uploads", value=True)
+    use_dropbox = st.checkbox("Use Dropbox", value=True)
 
 resume_texts = {}
 
-if source == "Local Upload":
+if use_local:
     resume_files = st.sidebar.file_uploader("Upload Resumes", type=["txt", "pdf", "docx"], accept_multiple_files=True)
     if resume_files:
-        resume_texts = {res.name: extract_text(res, res.name) for res in resume_files}
+        resume_texts.update({res.name: extract_text(res, res.name) for res in resume_files})
 
-elif source == "Dropbox" and dbx:
+if use_dropbox and dbx:
     st.sidebar.subheader("Browse Dropbox Folders")
     folder_options = list_dropbox_folders("")
     selected_folder = st.sidebar.selectbox("Select Dropbox Folder", folder_options)
