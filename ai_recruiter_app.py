@@ -139,6 +139,16 @@ if use_local:
 
 if use_dropbox and dbx:
     st.sidebar.subheader("Dropbox Resumes")
+
+    # Debug View: Show All Dropbox Entries
+    try:
+        all_entries = dbx.files_list_folder("").entries
+        st.sidebar.markdown("**📦 Dropbox Root Contents:**")
+        for entry in all_entries:
+            st.sidebar.write(f"- {entry.name} ({type(entry).__name__})")
+    except Exception as e:
+        st.sidebar.error(f"Dropbox access error: {e}")
+
     folder_options = list_dropbox_folders("")
 
     if folder_options:
