@@ -25,6 +25,11 @@ def list_dropbox_files(folder):
     files = [entry for entry in entries if isinstance(entry, dropbox.files.FileMetadata) and entry.name.lower().endswith((".pdf", ".docx", ".txt"))]
     return files
 
+def list_root_files_if_no_folders():
+    entries = dbx.files_list_folder("").entries
+    files = [entry for entry in entries if isinstance(entry, dropbox.files.FileMetadata) and entry.name.lower().endswith((".pdf", ".docx", ".txt"))]
+    return files
+
 def download_and_extract_text(file_metadata):
     _, res = dbx.files_download(file_metadata.path_lower)
     name = file_metadata.name
@@ -121,16 +126,25 @@ if use_local:
         resume_texts.update({res.name: extract_text(res, res.name) for res in resume_files})
 
 if use_dropbox and dbx:
-    st.sidebar.subheader("Browse Dropbox Folders")
+    st.sidebar.subheader("Dropbox Resumes")
     folder_options = list_dropbox_folders("")
-    selected_folder = st.sidebar.selectbox("Select Dropbox Folder", folder_options)
 
-    if selected_folder:
-        file_metadata_list = list_dropbox_files(selected_folder)
-        selected_files = st.sidebar.multiselect("Select Resumes", options=file_metadata_list, format_func=lambda f: f.name)
-
-        for file_meta in selected_files:
-            resume_texts[file_meta.name] = download_and_extract_text(file_meta)
+    if folder_options:
+        selected_folder = st.sidebar.selectbox("Select Dropbox Folder", folder_options)
+        if selected_folder:
+            file_metadata_list = list_dropbox_files(selected_folder)
+            selected_files = st.sidebar.multiselect("Select Resumes", options=file_metadata_list, format_func=lambda f: f.name)
+            for file_meta in selected_files:
+                resume_texts[file_meta.name] = download_and_extract_text(file_meta)
+    else:
+        st.sidebar.info("No folders found. Showing root files instead.")
+        root_files = list_root_files_if_no_folders()
+        if root_files:
+            selected_files = st.sidebar.multiselect("Select Resumes from Root", options=root_files, format_func=lambda f: f.name)
+            for file_meta in selected_files:
+                resume_texts[file_meta.name] = download_and_extract_text(file_meta)
+        else:
+            st.sidebar.warning("No resumes found in root directory either.")
 
 if job_file and resume_texts:
     job_text = extract_text(job_file, job_file.name)
