@@ -163,10 +163,11 @@ if use_dropbox and dbx:
     st.sidebar.subheader("Dropbox Resumes")
 
     try:
+        st.sidebar.markdown("### 📁 Dropbox Root Path Check")
         all_entries = dbx.files_list_folder("").entries
         st.sidebar.markdown("**📦 Dropbox Root Contents:**")
         for entry in all_entries:
-            st.sidebar.write(f"- {entry.name} ({type(entry).__name__})")
+            st.sidebar.write(f"- {entry.path_display} ({type(entry).__name__})")
     except Exception as e:
         st.sidebar.error(f"Dropbox access error: {e}")
 
