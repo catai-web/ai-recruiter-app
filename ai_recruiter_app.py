@@ -163,9 +163,19 @@ if use_dropbox and dbx:
     st.sidebar.subheader("Dropbox Resumes")
 
     try:
-        st.sidebar.markdown("### 📁 Dropbox Root Path Check")
-        all_entries = dbx.files_list_folder("").entries
-        st.sidebar.markdown("**📦 Dropbox Root Contents:**")
+        st.sidebar.markdown("### 📁 Dropbox Root Path Check (Recursive)")
+        def walk_dropbox_folder(path=""):
+            try:
+                entries = dbx.files_list_folder(path).entries
+                for entry in entries:
+                    st.sidebar.write(f"- {entry.path_display} ({type(entry).__name__})")
+                    if isinstance(entry, dropbox.files.FolderMetadata):
+                        walk_dropbox_folder(entry.path_lower)
+            except Exception as e:
+                st.sidebar.write(f"  ⚠️ Error accessing {path}: {e}")
+
+        walk_dropbox_folder()
+        st.sidebar.markdown("**📦 Dropbox Root Contents (Recursive):**")
         for entry in all_entries:
             st.sidebar.write(f"- {entry.path_display} ({type(entry).__name__})")
     except Exception as e:
