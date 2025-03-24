@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="AI Resume Screener", layout="wide")
+
 import tempfile
 import os
 import pandas as pd
@@ -130,7 +132,6 @@ def rank_candidates(resume_texts, job_description):
 # -----------------------------
 # Streamlit App
 # -----------------------------
-st.set_page_config(page_title="AI Resume Screener", layout="wide")
 st.title("🤖 AI-Powered Resume Screener")
 
 with st.sidebar:
