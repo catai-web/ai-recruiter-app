@@ -14,7 +14,16 @@ from sklearn.metrics.pairwise import cosine_similarity
 # -----------------------------
 # Dropbox Setup
 # -----------------------------
-DROPBOX_TOKEN = st.text_input("Enter your Dropbox token", type="password")
+if "DROPBOX_TOKEN" not in st.session_state:
+    st.session_state["DROPBOX_TOKEN"] = ""
+
+st.session_state["DROPBOX_TOKEN"] = st.text_input(
+    "Enter your Dropbox token",
+    type="password",
+    value=st.session_state["DROPBOX_TOKEN"]
+)
+
+DROPBOX_TOKEN = st.session_state["DROPBOX_TOKEN"]
 dbx = dropbox.Dropbox(DROPBOX_TOKEN) if DROPBOX_TOKEN else None
 
 # Connection Test
