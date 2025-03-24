@@ -175,9 +175,7 @@ if use_dropbox and dbx:
                 st.sidebar.write(f"  ⚠️ Error accessing {path}: {e}")
 
         walk_dropbox_folder()
-        st.sidebar.markdown("**📦 Dropbox Root Contents (Recursive):**")
-        for entry in all_entries:
-            st.sidebar.write(f"- {entry.path_display} ({type(entry).__name__})")
+        
     except Exception as e:
         st.sidebar.error(f"Dropbox access error: {e}")
 
