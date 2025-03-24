@@ -16,19 +16,31 @@ DROPBOX_TOKEN = st.secrets.get("DROPBOX_TOKEN")
 dbx = dropbox.Dropbox(DROPBOX_TOKEN) if DROPBOX_TOKEN else None
 
 def list_dropbox_folders(path=""):
-    entries = dbx.files_list_folder(path).entries
-    folders = [entry.path_display for entry in entries if isinstance(entry, dropbox.files.FolderMetadata)]
-    return folders
+    try:
+        entries = dbx.files_list_folder(path).entries
+        folders = [entry.path_display for entry in entries if isinstance(entry, dropbox.files.FolderMetadata)]
+        return folders
+    except Exception as e:
+        st.sidebar.error(f"Error accessing Dropbox folders: {e}")
+        return []
 
 def list_dropbox_files(folder):
-    entries = dbx.files_list_folder(folder).entries
-    files = [entry for entry in entries if isinstance(entry, dropbox.files.FileMetadata) and entry.name.lower().endswith((".pdf", ".docx", ".txt"))]
-    return files
+    try:
+        entries = dbx.files_list_folder(folder).entries
+        files = [entry for entry in entries if isinstance(entry, dropbox.files.FileMetadata) and entry.name.lower().endswith((".pdf", ".docx", ".txt"))]
+        return files
+    except Exception as e:
+        st.sidebar.error(f"Error accessing Dropbox files: {e}")
+        return []
 
 def list_root_files_if_no_folders():
-    entries = dbx.files_list_folder("").entries
-    files = [entry for entry in entries if isinstance(entry, dropbox.files.FileMetadata) and entry.name.lower().endswith((".pdf", ".docx", ".txt"))]
-    return files
+    try:
+        entries = dbx.files_list_folder("").entries
+        files = [entry for entry in entries if isinstance(entry, dropbox.files.FileMetadata) and entry.name.lower().endswith((".pdf", ".docx", ".txt"))]
+        return files
+    except Exception as e:
+        st.sidebar.error(f"Error accessing root files: {e}")
+        return []
 
 def download_and_extract_text(file_metadata):
     _, res = dbx.files_download(file_metadata.path_lower)
@@ -133,11 +145,14 @@ if use_dropbox and dbx:
         selected_folder = st.sidebar.selectbox("Select Dropbox Folder", folder_options)
         if selected_folder:
             file_metadata_list = list_dropbox_files(selected_folder)
-            selected_files = st.sidebar.multiselect("Select Resumes", options=file_metadata_list, format_func=lambda f: f.name)
-            for file_meta in selected_files:
-                resume_texts[file_meta.name] = download_and_extract_text(file_meta)
+            if file_metadata_list:
+                selected_files = st.sidebar.multiselect("Select Resumes", options=file_metadata_list, format_func=lambda f: f.name)
+                for file_meta in selected_files:
+                    resume_texts[file_meta.name] = download_and_extract_text(file_meta)
+            else:
+                st.sidebar.warning("No resumes found in selected Dropbox folder.")
     else:
-        st.sidebar.info("No folders found. Showing root files instead.")
+        st.sidebar.info("No folders found. Checking root directory...")
         root_files = list_root_files_if_no_folders()
         if root_files:
             selected_files = st.sidebar.multiselect("Select Resumes from Root", options=root_files, format_func=lambda f: f.name)
