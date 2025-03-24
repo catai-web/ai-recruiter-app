@@ -14,11 +14,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 # -----------------------------
 # Dropbox Setup
 # -----------------------------
-DROPBOX_TOKEN = st.secrets.get("DROPBOX_TOKEN")
+DROPBOX_TOKEN = st.text_input("Enter your Dropbox token", type="password")
 dbx = dropbox.Dropbox(DROPBOX_TOKEN) if DROPBOX_TOKEN else None
 
 # Connection Test
-if dbx:
+if DROPBOX_TOKEN:
+    dbx = dropbox.Dropbox(DROPBOX_TOKEN)
     try:
         current_account = dbx.users_get_current_account()
         st.sidebar.success(f"✅ Connected to Dropbox as {current_account.name.display_name}")
