@@ -27,7 +27,7 @@ if DROPBOX_TOKEN:
         st.sidebar.error("❌ Failed to connect to Dropbox. Check your token.")
         dbx = None
 else:
-    st.sidebar.error("❌ No Dropbox token found. Set DROPBOX_TOKEN in Streamlit secrets.")
+    st.sidebar.error("❌ No Dropbox token entered. Please paste your token above.")
 
 def list_dropbox_folders(path=""):
     try:
