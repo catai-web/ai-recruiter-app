@@ -170,7 +170,7 @@ if use_dropbox and dbx:
     except Exception as e:
         st.sidebar.error(f"Dropbox access error: {e}")
 
-    folder_options = list_dropbox_folders("")
+    folder_options = list_dropbox_folders("/Recruitment Candidates")
 
     if folder_options:
         selected_folder = st.sidebar.selectbox("Select Dropbox Folder", folder_options)
@@ -184,7 +184,7 @@ if use_dropbox and dbx:
                 st.sidebar.warning("No resumes found in selected Dropbox folder.")
     else:
         st.sidebar.info("No folders found. Checking root directory...")
-        root_files = list_root_files_if_no_folders()
+        root_files = list_dropbox_files("/Recruitment Candidates")
         if root_files:
             selected_files = st.sidebar.multiselect("Select Resumes from Root", options=root_files, format_func=lambda f: f.name)
             for file_meta in selected_files:
