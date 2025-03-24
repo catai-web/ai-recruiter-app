@@ -15,6 +15,17 @@ from sklearn.metrics.pairwise import cosine_similarity
 DROPBOX_TOKEN = st.secrets.get("DROPBOX_TOKEN")
 dbx = dropbox.Dropbox(DROPBOX_TOKEN) if DROPBOX_TOKEN else None
 
+# Connection Test
+if dbx:
+    try:
+        current_account = dbx.users_get_current_account()
+        st.sidebar.success(f"✅ Connected to Dropbox as {current_account.name.display_name}")
+    except Exception as e:
+        st.sidebar.error("❌ Failed to connect to Dropbox. Check your token.")
+        dbx = None
+else:
+    st.sidebar.error("❌ No Dropbox token found. Set DROPBOX_TOKEN in Streamlit secrets.")
+
 def list_dropbox_folders(path=""):
     try:
         entries = dbx.files_list_folder(path).entries
@@ -140,7 +151,6 @@ if use_local:
 if use_dropbox and dbx:
     st.sidebar.subheader("Dropbox Resumes")
 
-    # Debug View: Show All Dropbox Entries
     try:
         all_entries = dbx.files_list_folder("").entries
         st.sidebar.markdown("**📦 Dropbox Root Contents:**")
