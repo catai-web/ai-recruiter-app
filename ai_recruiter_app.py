@@ -33,7 +33,7 @@ if DROPBOX_TOKEN:
         current_account = dbx.users_get_current_account()
         st.sidebar.success(f"✅ Connected to Dropbox as {current_account.name.display_name}")
     except Exception as e:
-        st.sidebar.error("❌ Failed to connect to Dropbox. Check your token.")
+        st.sidebar.error(f"❌ Failed to connect to Dropbox: {e}")
         st.session_state["DROPBOX_TOKEN"] = ""
         dbx = None
 else:
