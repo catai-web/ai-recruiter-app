@@ -33,7 +33,7 @@ if DROPBOX_TOKEN:
         # Try regular connection first
         dbx = dropbox.Dropbox(DROPBOX_TOKEN)
         current_account = dbx.users_get_current_account()
-        st.sidebar.success(f"✅ Connected to Dropbox as {current_account.name.display_name}")
+        st.sidebar.success(f"✅ Connected to Dropbox as {current_account.name.display_name} ({current_account.email})")
     except dropbox.exceptions.BadInputError as e:
         if "Dropbox-API-Select-User" in str(e):
             try:
@@ -47,7 +47,7 @@ if DROPBOX_TOKEN:
 
                 dbx = dbx_team.as_user(selected_member_id)
                 current_account = dbx.users_get_current_account()
-                st.sidebar.success(f"✅ Acting as: {current_account.name.display_name} ({selected_email})")
+                st.sidebar.success(f"✅ Acting as: {current_account.name.display_name} ({current_account.email})")
             except Exception as member_error:
                 st.sidebar.error(f"❌ Failed to impersonate team member: {member_error}")
                 st.session_state["DROPBOX_TOKEN"] = ""
