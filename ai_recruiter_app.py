@@ -24,11 +24,38 @@ st.session_state["DROPBOX_TOKEN"] = st.text_input(
 )
 
 DROPBOX_TOKEN = st.session_state["DROPBOX_TOKEN"]
-dbx = dropbox.Dropbox(DROPBOX_TOKEN) if DROPBOX_TOKEN else None
+dbx = None
+selected_member_id = None
 
 # Connection Test
 if DROPBOX_TOKEN:
-    dbx = dropbox.Dropbox(DROPBOX_TOKEN)
+    try:
+        # Try regular connection first
+        dbx = dropbox.Dropbox(DROPBOX_TOKEN)
+        current_account = dbx.users_get_current_account()
+        st.sidebar.success(f"✅ Connected to Dropbox as {current_account.name.display_name}")
+    except dropbox.exceptions.BadInputError as e:
+        if "Dropbox-API-Select-User" in str(e):
+            try:
+                # Token is a team token — use DropboxTeam
+                dbx_team = dropbox.DropboxTeam(DROPBOX_TOKEN)
+                members = dbx_team.team_members_list().members
+                member_options = {m.profile.email: m.profile.team_member_id for m in members if m.profile.status.tag == "active"}
+
+                selected_email = st.sidebar.selectbox("👤 Select a team member to act as", list(member_options.keys()))
+                selected_member_id = member_options[selected_email]
+
+                dbx = dbx_team.as_user(selected_member_id)
+                current_account = dbx.users_get_current_account()
+                st.sidebar.success(f"✅ Acting as: {current_account.name.display_name} ({selected_email})")
+            except Exception as member_error:
+                st.sidebar.error(f"❌ Failed to impersonate team member: {member_error}")
+                st.session_state["DROPBOX_TOKEN"] = ""
+                dbx = None
+        else:
+            st.sidebar.error(f"❌ Failed to connect to Dropbox: {e}")
+            st.session_state["DROPBOX_TOKEN"] = ""
+            dbx = None
     try:
         current_account = dbx.users_get_current_account()
         st.sidebar.success(f"✅ Connected to Dropbox as {current_account.name.display_name}")
