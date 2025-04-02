@@ -4,3 +4,4 @@ scikit-learn
 pdfplumber
 python-docx
 dropbox
+tempfile
