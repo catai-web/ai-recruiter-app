@@ -1,7 +1,7 @@
 import streamlit as st
 st.set_page_config(page_title="AI Resume Screener", layout="wide")
 
-
+import tempfile
 import os
 import pandas as pd
 import pdfplumber
@@ -125,7 +125,7 @@ def walk_dropbox_folder(path="", depth=0, max_depth=2):
 # Text Extraction Helpers
 # -----------------------------
 def clean_text(text):
-    text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
+    text = re.sub(r'[^a-zA-Z0-9@.\s+\-()]', '', text)
     return text.lower()
 
 def extract_text_from_pdf(file):
@@ -180,6 +180,14 @@ def download_and_extract_text(file_metadata):
         st.sidebar.error(f"Failed to extract text from {file_metadata.name}: {e}")
     return ""
 
+def extract_email(text):
+    match = re.search(r"[\w\.-]+@[\w\.-]+", text)
+    return match.group(0) if match else "Not found"
+
+def extract_phone(text):
+    match = re.search(r"\+?\d[\d\s\-()]{7,}\d", text)
+    return match.group(0) if match else "Not found"
+
 # -----------------------------
 # AI Matching Model
 # -----------------------------
@@ -196,8 +204,12 @@ def rank_candidates(resume_texts, job_description):
     results = []
     for i, (filename, text) in enumerate(resume_texts.items()):
         matched_keywords = [word for word in job_description.split() if word in text]
+        email = extract_email(text)
+        phone = extract_phone(text)
         results.append({
             'Candidate': filename,
+            'Email': email,
+            'Phone': phone,
             'Match Score': round(similarities[i][0] * 100, 2),
             'Matched Keywords': ", ".join(set(matched_keywords))
         })
