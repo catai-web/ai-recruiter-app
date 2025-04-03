@@ -100,15 +100,6 @@ def list_dropbox_files(folder):
         st.sidebar.error(f"Error accessing Dropbox files: {e}")
         return []
 
-def list_root_files_if_no_folders():
-    try:
-        entries = dbx.files_list_folder("/").entries
-        files = [entry for entry in entries if isinstance(entry, dropbox.files.FileMetadata) and entry.name.lower().endswith((".pdf", ".docx", ".txt"))]
-        return files
-    except Exception as e:
-        st.sidebar.error(f"Error accessing root files: {e}")
-        return []
-
 def walk_dropbox_folder(path="", depth=0, max_depth=2):
     if depth > max_depth:
         return
@@ -214,7 +205,7 @@ def rank_candidates(resume_texts, job_description):
             'Matched Keywords': ", ".join(set(matched_keywords))
         })
 
-    return sorted(results, key=lambda x: x['Match Score'], reverse=True)
+    return results
 
 # -----------------------------
 # Streamlit App
@@ -272,6 +263,29 @@ if job_file and resume_texts:
     with st.spinner("Ranking candidates..."):
         ranked = rank_candidates(resume_texts, job_text)
         df = pd.DataFrame(ranked)
+
+        # Extract top job keywords based on TF-IDF from the job description
+        job_vectorizer = TfidfVectorizer(stop_words='english')
+        job_tfidf = job_vectorizer.fit_transform([job_text])
+        tfidf_scores = list(zip(job_vectorizer.get_feature_names_out(), job_tfidf.toarray()[0]))
+        sorted_keywords = sorted(tfidf_scores, key=lambda x: x[1], reverse=True)
+        top_keywords = [kw for kw, score in sorted_keywords[:10]]
+
+        df.insert(1, 'Top JD Keywords', top_keywords)
+
+        def top_keyword_score(matched_keywords_str):
+            if not matched_keywords_str:
+                return 0.0
+            matched_set = set(matched_keywords_str.split(", "))
+            return len(set(top_keywords).intersection(matched_set)) / len(top_keywords) if top_keywords else 0
+
+        df['Top Keyword Match Ratio'] = df['Matched Keywords'].apply(top_keyword_score)
+        top_weight = 0.7
+        similarity_weight = 0.3
+        df['Final Suitability Score'] = top_weight * df['Top Keyword Match Ratio'] + similarity_weight * (df['Match Score'] / 100)
+
+        df = df.sort_values(by=["Final Suitability Score"], ascending=False)
+
         st.success("Done! Here are the results:")
         st.dataframe(df)
 
