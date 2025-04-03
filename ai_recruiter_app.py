@@ -286,6 +286,17 @@ if job_file and resume_texts:
 
         df = df.sort_values(by=["Final Suitability Score"], ascending=False)
 
+        # Explain candidate strengths and weaknesses
+        def evaluate_candidate(row):
+            matched = set(row['Matched Keywords'].split(", "))
+            top_matched = set(top_keywords[:5]).intersection(matched)
+            missing = set(top_keywords[:5]) - matched
+            reason = f"✅ Matched top keywords: {', '.join(top_matched)}."
+            weakness = f"⚠️ Missing important keywords: {', '.join(missing)}."
+            return reason + " " + weakness
+
+        df['Evaluation Summary'] = df.apply(evaluate_candidate, axis=1)
+
         st.success("Done! Here are the results:")
         st.dataframe(df)
 
