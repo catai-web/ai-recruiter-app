@@ -1,4 +1,3 @@
-
 import streamlit as st
 st.set_page_config(page_title="AI Resume Screener", layout="wide")
 
@@ -9,6 +8,7 @@ import pdfplumber
 import docx
 import re
 import dropbox
+import glob
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -28,70 +28,22 @@ DROPBOX_TOKEN = st.session_state["DROPBOX_TOKEN"]
 dbx = None
 selected_member_id = None
 
-# Connection Test
+# Connect to Dropbox
 if DROPBOX_TOKEN:
     try:
         dbx = dropbox.Dropbox(DROPBOX_TOKEN)
         current_account = dbx.users_get_current_account()
         st.sidebar.success(f"✅ Connected to Dropbox as {current_account.name.display_name} ({current_account.email})")
-    except dropbox.exceptions.BadInputError as e:
-        if "Dropbox-API-Select-User" in str(e):
-            try:
-                dbx_team = dropbox.DropboxTeam(DROPBOX_TOKEN)
-                members = dbx_team.team_members_list().members
-
-                member_options = {}
-                for m in members:
-                    status_tag_func = getattr(m.profile.status, 'tag', None)
-                    if callable(status_tag_func) and status_tag_func() == "active":
-                        member_options[m.profile.email] = m.profile.team_member_id
-                    elif hasattr(m.profile.status, 'is_active') and m.profile.status.is_active:
-                        member_options[m.profile.email] = m.profile.team_member_id
-
-                if member_options:
-                    selected_email = st.sidebar.selectbox("👤 Select a team member to act as", list(member_options.keys()))
-                    selected_member_id = member_options[selected_email]
-
-                    dbx = dbx_team.as_user(selected_member_id)
-                    current_account = dbx.users_get_current_account()
-                    st.sidebar.success(f"✅ Acting as: {current_account.name.display_name} ({current_account.email})")
-                else:
-                    st.sidebar.error("❌ No active team members found.")
-
-            except Exception as member_error:
-                st.sidebar.error(f"❌ Failed to impersonate team member: {member_error}")
-                st.session_state["DROPBOX_TOKEN"] = ""
-                dbx = None
-        else:
-            st.sidebar.error(f"❌ Failed to connect to Dropbox: {e}")
-            st.session_state["DROPBOX_TOKEN"] = ""
-            dbx = None
-    except Exception as general_error:
-        st.sidebar.error(f"❌ General Dropbox connection error: {general_error}")
+    except Exception as e:
+        st.sidebar.error(f"❌ Failed to connect to Dropbox: {e}")
+        st.session_state["DROPBOX_TOKEN"] = ""
         dbx = None
-
-    if dbx:
-        try:
-            current_account = dbx.users_get_current_account()
-            st.sidebar.success(f"✅ Connected to Dropbox as {current_account.name.display_name}")
-        except Exception as e:
-            st.sidebar.error(f"❌ Failed to fetch Dropbox account details: {e}")
-            dbx = None
 else:
     st.sidebar.error("❌ No Dropbox token entered. Please paste your token above.")
 
 # -----------------------------
 # Dropbox Helpers
 # -----------------------------
-def list_dropbox_folders(path=""):
-    try:
-        entries = dbx.files_list_folder(path).entries
-        folders = [entry.path_display for entry in entries if isinstance(entry, dropbox.files.FolderMetadata)]
-        return folders
-    except Exception as e:
-        st.sidebar.error(f"Error accessing Dropbox folders: {e}")
-        return []
-
 def list_dropbox_files(folder):
     try:
         entries = dbx.files_list_folder(folder).entries
@@ -100,18 +52,6 @@ def list_dropbox_files(folder):
     except Exception as e:
         st.sidebar.error(f"Error accessing Dropbox files: {e}")
         return []
-
-def walk_dropbox_folder(path="", depth=0, max_depth=2):
-    if depth > max_depth:
-        return
-    try:
-        entries = dbx.files_list_folder(path).entries
-        for entry in entries:
-            st.sidebar.write(f"- {entry.path_display} ({type(entry).__name__})")
-            if isinstance(entry, dropbox.files.FolderMetadata):
-                walk_dropbox_folder(entry.path_lower, depth + 1, max_depth)
-    except Exception as e:
-        st.sidebar.write(f"  ⚠️ Error accessing {path}: {e}")
 
 # -----------------------------
 # Text Extraction Helpers
@@ -223,41 +163,52 @@ with st.sidebar:
 
 resume_texts = {}
 
+# Local Upload (Multiple Files)
 if use_local:
-    resume_files = st.sidebar.file_uploader("Upload Resumes", type=["txt", "pdf", "docx"], accept_multiple_files=True)
-    if resume_files:
-        resume_texts.update({res.name: extract_text(res, res.name) for res in resume_files})
+    st.sidebar.subheader("📁 Load Resumes from Local Folder")
+    local_folder = st.sidebar.text_input("Enter local folder path", value="resumes/")
 
+    if local_folder and os.path.exists(local_folder):
+        with st.spinner(f"Scanning folder: {local_folder}"):
+            supported_exts = ("*.pdf", "*.docx", "*.txt")
+            all_files = []
+            for ext in supported_exts:
+                all_files.extend(glob.glob(os.path.join(local_folder, ext)))
+
+            if all_files:
+                for file_path in all_files:
+                    filename = os.path.basename(file_path)
+                    with open(file_path, "rb") as f:
+                        resume_texts[filename] = extract_text(f, filename)
+                st.sidebar.success(f"✅ Loaded {len(all_files)} resumes from {local_folder}")
+            else:
+                st.sidebar.warning("⚠️ No supported resume files found in this folder.")
+    elif local_folder:
+        st.sidebar.error("❌ Folder not found. Please check the path.")
+
+# Dropbox Upload
 if use_dropbox:
     if dbx:
-        st.sidebar.subheader("Dropbox Resumes")
-        with st.spinner("Fetching Dropbox folder structure..."):
-            walk_dropbox_folder()
+        st.sidebar.subheader("📂 Dropbox Folder Input")
+        dropbox_folder_path = st.sidebar.text_input(
+            "Enter Dropbox Folder Path", 
+            value="/Resumes/SRE", 
+            help="Example: /Resumes/SRE or /Recruitment Candidates/Java"
+        )
 
-        folder_options = list_dropbox_folders("/Recruitment Candidates")
-
-        if folder_options:
-            selected_folder = st.sidebar.selectbox("Select Dropbox Folder", folder_options)
-            if selected_folder:
-                file_metadata_list = list_dropbox_files(selected_folder)
-                if file_metadata_list:
-                    selected_files = st.sidebar.multiselect("Select Resumes", options=file_metadata_list, format_func=lambda f: f.name)
-                    for file_meta in selected_files:
+        if dropbox_folder_path:
+            file_metadata_list = list_dropbox_files(dropbox_folder_path)
+            if file_metadata_list:
+                with st.spinner(f"📥 Loading resumes from: {dropbox_folder_path}"):
+                    for file_meta in file_metadata_list:
                         resume_texts[file_meta.name] = download_and_extract_text(file_meta)
-                else:
-                    st.sidebar.warning("No resumes found in selected Dropbox folder.")
-        else:
-            st.sidebar.info("No folders found. Checking root directory...")
-            root_files = list_dropbox_files("/Recruitment Candidates")
-            if root_files:
-                selected_files = st.sidebar.multiselect("Select Resumes from Root", options=root_files, format_func=lambda f: f.name)
-                for file_meta in selected_files:
-                    resume_texts[file_meta.name] = download_and_extract_text(file_meta)
+                st.sidebar.success(f"✅ Loaded {len(file_metadata_list)} resumes from {dropbox_folder_path}")
             else:
-                st.sidebar.warning("No resumes found in root directory either.")
+                st.sidebar.warning("⚠️ No resumes found in the specified Dropbox folder.")
     else:
         st.sidebar.warning("⚠️ Dropbox not connected. Check your token and try again.")
 
+# Run Matching
 if job_file and resume_texts:
     job_text = extract_text(job_file, job_file.name)
 
@@ -272,7 +223,7 @@ if job_file and resume_texts:
         sorted_keywords = sorted(tfidf_scores, key=lambda x: x[1], reverse=True)
         top_keywords = [kw for kw, score in sorted_keywords[:10]]
 
-        df.insert(1, 'Top JD Keywords', top_keywords)
+        df.insert(1, 'Top JD Keywords', ", ".join(top_keywords))
 
         def top_keyword_score(matched_keywords_str):
             if not matched_keywords_str:
@@ -284,10 +235,8 @@ if job_file and resume_texts:
         top_weight = 0.7
         similarity_weight = 0.3
         df['Final Suitability Score'] = top_weight * df['Top Keyword Match Ratio'] + similarity_weight * (df['Match Score'] / 100)
-
         df = df.sort_values(by=["Final Suitability Score"], ascending=False)
 
-        # Explain candidate strengths and weaknesses
         def evaluate_candidate(row):
             matched = set(row['Matched Keywords'].split(", "))
             top_matched = set(top_keywords[:5]).intersection(matched)
